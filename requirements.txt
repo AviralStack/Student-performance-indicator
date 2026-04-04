@@ -1,7 +1,11 @@
-ipykernel
 pandas
 numpy
-scikit-learn
 seaborn
+matplotlib
+scikit-learn
+catboost
+xgboost
+dill
+ipykernel
 streamlit
--e .
+# -e .
