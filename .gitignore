@@ -1,2 +1,12 @@
-venv
-.artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+# artifacts/
+logs/
+catboost_info/
+*.log
