@@ -1,117 +1,108 @@
 import sys
 import os
 from dataclasses import dataclass
-
+import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder,StandardScaler
 
 from src.exception import CustomException
 from src.logger import logging
-
+from src.utils import save_object
 
 @dataclass
-class DataTransformation:
-    dataset: str
-    output_feature: str
+class DataTrasformationConfig:
+    preprocessor_obj_file_path = os.path.join("/home/aviral-linux/Student-Performance/artifacts","preprocessor.pkl")
 
-    def transformation(self):
-        logging.info("Entering Data Transformation stage")
-
+class DataTranfromation:
+    def __init__(self):
+        self.data_tranformation_config=DataTrasformationConfig()  
+    def get_data_transformer_obj(self):
+        '''This function will Tranform  your data'''
         try:
-            file_type = os.path.splitext(self.dataset)[1]
+            numerical_columns=["writing_score","reading_score"]
+            categorical_columns=[
+                "gender",
+                "race_ethnicity",
+                "parental_level_of_education",
+                "lunch",
+                "test_preparation_course",
+            ]
 
-            # Load dataset
-            if file_type == '.csv':
-                df = pd.read_csv(self.dataset)
-            elif file_type in ['.xls', '.xlsx']:
-                df = pd.read_excel(self.dataset)
-            else:
-                raise Exception("Unsupported file format")
-
-            logging.info("Dataset loaded successfully")
-
-            # Split X and y
-            X = df.drop(self.output_feature, axis=1)
-            y = df[self.output_feature]
-
-            num_features = X.select_dtypes(exclude="object").columns
-            cat_features = X.select_dtypes(include="object").columns
-
-            from sklearn.preprocessing import OneHotEncoder, StandardScaler
-            from sklearn.compose import ColumnTransformer
-
-            numeric_transformer = StandardScaler()
-            oh_transformer = OneHotEncoder(handle_unknown='ignore')
-
-            preprocessor = ColumnTransformer(
-                [
-                    ("OneHotEncoder", oh_transformer, cat_features),
-                    ("StandardScaler", numeric_transformer, num_features),
+            num_Pipeline = Pipeline(
+                steps=[
+                    ("imputer",SimpleImputer(strategy='median')),
+                    ("scaler",StandardScaler())
                 ]
             )
+            logging.info("numercal columns Standard Scaling completed")
+            cat_pipeline=Pipeline(
+                steps=[
+                    ("imputer",SimpleImputer(strategy='most_frequent')),
+                    ("one_hot_enoder",OneHotEncoder()),
+                    # ("scaler",StandardScaler())
+                ]
 
-      
-            X_transformed = preprocessor.fit_transform(X)
+            )
+            logging.info("Categorical column encoding completed")
 
-            oh_features = preprocessor.named_transformers_["OneHotEncoder"] \
-                .get_feature_names_out(cat_features)
+            logging.info(f"Categorical columns: {categorical_columns}")
+            logging.info(f"Numerical columns: {numerical_columns}")
+            
+            preprocessor=ColumnTransformer(
+                [
+                    ("num_pipeline",num_Pipeline,numerical_columns),
+                    ("cat_pipelines",cat_pipeline,categorical_columns)
+                ]
+            )
+            return preprocessor
+            
+        except Exception as e:
+            raise CustomException(e,sys)
+        
+    def initiate_data_tranformation(self,train_path,test_path):
+        try:
+            train_df=pd.read_csv(train_path)
+            test_df=pd.read_csv(test_path)
+            logging.info("Read train and test data completed")
+            logging.info("obtaning preprocessing object")
 
-            all_features = list(oh_features) + list(num_features)
+            preprocessing_obj=self.get_data_transformer_obj()
+            traget_column_name="math_score"
+            numerical_columns=["writing_score","reading_score"]
 
-            # Convert to DataFrame
-            X = pd.DataFrame(X_transformed, columns=all_features)
+            input_feature_train_df=train_df.drop(columns=[traget_column_name])
+            traget_feature_train_df=train_df[traget_column_name]
 
-            from sklearn.model_selection import train_test_split
+            input_feature_test_df=test_df.drop(columns=[traget_column_name])
+            traget_feature_test_df=test_df[traget_column_name]
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+            logging.info(
+                f"applying preprocessing object on traning dataframe and testing dataframe."
+            )
+            input_feature_train_arr=preprocessing_obj.fit_transform(input_feature_train_df)
+            input_feature_test_arr=preprocessing_obj.transform(input_feature_test_df)
+
+            train_arr=np.c_[input_feature_train_arr,np.array(traget_feature_train_df)]
+            test_arr=np.c_[input_feature_test_arr,np.array(traget_feature_test_df)]
+            logging.info(f"saving preprocessing object")
+
+            save_object(
+                file_path=self.data_tranformation_config.preprocessor_obj_file_path,
+                obj=preprocessing_obj
             )
 
-            logging.info("Data transformation completed successfully")
+            return (
+                train_arr,
+                test_arr,
+                self.data_tranformation_config.preprocessor_obj_file_path, 
+            )
 
-            return X_train, X_test, y_train, y_test, file_type
 
         except Exception as e:
-            raise CustomException(e, sys)
-
-
-if __name__ == "__main__":
-    try:
-        logging.info("Starting data transformation pipeline")
-
-        dataset_path = "/home/aviral-linux/Student-Performance/artifacts/train.csv"   
-        target_column = "math_score"           
-
-        transformer = DataTransformation(
-            dataset=dataset_path,
-            output_feature=target_column
-        )
-
-        X_train, X_test, y_train, y_test, file_type = transformer.transformation()
-
-        
-        output_dir = "/home/aviral-linux/Student-Performance/split_dataset"
-        os.makedirs(output_dir, exist_ok=True)
-
+            raise CustomException(e,sys)
     
-        y_train = pd.DataFrame(y_train, columns=[target_column])
-        y_test = pd.DataFrame(y_test, columns=[target_column])
-
-        if file_type == ".csv":
-            X_train.to_csv(os.path.join(output_dir, "X_train.csv"), index=False)
-            X_test.to_csv(os.path.join(output_dir, "X_test.csv"), index=False)
-            y_train.to_csv(os.path.join(output_dir, "y_train.csv"), index=False)
-            y_test.to_csv(os.path.join(output_dir, "y_test.csv"), index=False)
-
-        elif file_type in [".xls", ".xlsx"]:
-            X_train.to_excel(os.path.join(output_dir, "X_train.xlsx"), index=False)
-            X_test.to_excel(os.path.join(output_dir, "X_test.xlsx"), index=False)
-            y_train.to_excel(os.path.join(output_dir, "y_train.xlsx"), index=False)
-            y_test.to_excel(os.path.join(output_dir, "y_test.xlsx"), index=False)
-
-        else:
-            raise Exception("Unsupported file format")
-
-        logging.info("All datasets saved successfully in split_dataset folder")
-
-    except Exception as e:
-        raise CustomException(e, sys)
+            
+         
