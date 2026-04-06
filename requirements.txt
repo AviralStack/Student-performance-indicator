@@ -1,14 +1,26 @@
+# pandas
+# numpy
+# seaborn
+# # matplotlib
+# scikit-learn
+# catboost
+# xgboost
+# dill
+# # ipykernel
+# # streamlit
+# # Flask
+# flask
+gunicorn
+# # -e .
+
 pandas
 numpy
 seaborn
-# matplotlib
+matplotlib
 scikit-learn
 catboost
 xgboost
-dill
-# ipykernel
-# streamlit
-# Flask
-flask
-gunicorn
-# -e .
+Flask
+
+#-e .
+
