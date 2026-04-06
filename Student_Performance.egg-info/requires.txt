@@ -1,6 +1,0 @@
-ipykernel
-pandas
-numpy
-scikit-learn
-seaborn
-streamlit

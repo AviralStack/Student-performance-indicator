@@ -126,4 +126,9 @@ venv.bak/
 dmypy.json
 
 # Pyre type checker
-.pyre/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+Student_Performance.egg-info/
