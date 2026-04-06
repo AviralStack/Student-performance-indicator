@@ -132,3 +132,6 @@ __pycache__/
 *.pyo
 *.pyd
 Student_Performance.egg-info/
+
+Notebook
+artifacts
